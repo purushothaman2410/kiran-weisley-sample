@@ -1,4 +1,4 @@
-name: Build & Push Frontend to ECR
+ name: Build & Push Frontend to ECR
 
 on:
   push:
