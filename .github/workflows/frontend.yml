@@ -1,5 +1,5 @@
 name: Build & Push Frontend to ECR
-
+ 
 on:
   push:
     branches:
