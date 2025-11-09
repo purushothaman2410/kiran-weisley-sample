@@ -39,7 +39,7 @@ pipeline {
                     sh '''
                         docker stop ${CONTAINER_NAME} || true
                         docker rm ${CONTAINER_NAME} || true
-                        docker run -d --name ${CONTAINER_NAME} -p 8081:8081 ${IMAGE_NAME}:latest
+                        docker run -d --name ${CONTAINER_NAME} -p 4173:4173 ${IMAGE_NAME}:latest
                     '''
                 }
             }
@@ -48,7 +48,7 @@ pipeline {
 
     post {
         success {
-            echo '✅ Deployment Successful! Your app is live on port 8081.'
+            echo '✅ Deployment Successful! Your app is live on port 4173.'
         }
         failure {
             echo '❌ Deployment Failed. Check Jenkins logs for details.'
