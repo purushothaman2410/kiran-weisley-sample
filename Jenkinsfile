@@ -3,8 +3,7 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
-        SSH_KEY = credentials('deploy-ssh-key')
-        IMAGE_NAME = "purushothraj/myapp"
+        IMAGE_NAME = "purushothraj/kiran-weisley-sample"
         CONTAINER_NAME = "myapp-container"
         EC2_HOST = "3.108.55.154"
     }
@@ -18,47 +17,30 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh """
-                        docker build -t ${IMAGE_NAME}:latest .
-                    """
-                }
+                sh "docker build -t ${IMAGE_NAME}:latest ."
             }
         }
 
-        stage('Login to Docker Hub') {
+        stage('Push to Docker Hub') {
             steps {
-                script {
-                    sh """
-                        echo "${DOCKERHUB_CREDENTIALS_PSW}" | docker login -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
-                    """
-                }
-            }
-        }
-
-        stage('Push Image to Docker Hub') {
-            steps {
-                script {
-                    sh """
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${IMAGE_NAME}:latest
-                    """
+                    '''
                 }
             }
         }
 
-        stage('Deploy to EC2') {
+        stage('Deploy to Jenkins EC2') {
             steps {
                 script {
-                    sshagent(['deploy-ssh-key']) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no ec2-user@${EC2_HOST} '
-                                docker pull ${IMAGE_NAME}:latest &&
-                                docker stop ${CONTAINER_NAME} || true &&
-                                docker rm ${CONTAINER_NAME} || true &&
-                                docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE_NAME}:latest
-                            '
-                        """
-                    }
+                    // Since Jenkins and Docker are on same EC2, no SSH needed
+                    sh '''
+                        docker stop ${CONTAINER_NAME} || true
+                        docker rm ${CONTAINER_NAME} || true
+                        docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}:latest
+                    '''
                 }
             }
         }
@@ -66,10 +48,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Deployment Successful!'
+            echo '✅ Deployment Successful! Your app is live on port 8080.'
         }
         failure {
-            echo '❌ Deployment Failed. Check Jenkins logs.'
+            echo '❌ Deployment Failed. Check Jenkins logs for details.'
         }
     }
 }
