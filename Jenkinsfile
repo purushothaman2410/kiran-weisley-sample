@@ -5,10 +5,11 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
         IMAGE_NAME = "purushothraj/kiran-weisley-sample"
         CONTAINER_NAME = "myapp-container"
-        EC2_HOST = "3.108.55.154"
+        APP_PORT = "4173"
     }
 
     stages {
+
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/purushothaman2410/kiran-weisley-sample.git'
@@ -23,7 +24,11 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([
+                    usernamePassword(credentialsId: 'dockerhub-creds', 
+                    usernameVariable: 'DOCKER_USER', 
+                    passwordVariable: 'DOCKER_PASS')
+                ]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${IMAGE_NAME}:latest
@@ -32,26 +37,34 @@ pipeline {
             }
         }
 
-        stage('Deploy to Jenkins EC2') {
+        stage('Deploy Application') {
             steps {
-                script {
-                    // Since Jenkins and Docker are on same EC2, no SSH needed
-                    sh '''
-                        docker stop ${CONTAINER_NAME} || true
-                        docker rm ${CONTAINER_NAME} || true
-                        docker run -d --name ${CONTAINER_NAME} -p 4173:4173 ${IMAGE_NAME}:latest
-                    '''
-                }
+                sh '''
+                    echo "Stopping existing container if running..."
+                    docker stop ${CONTAINER_NAME} || true
+
+                    echo "Removing old container..."
+                    docker rm ${CONTAINER_NAME} || true
+
+                    echo "Pruning old images..."
+                    docker system prune -af || true
+
+                    echo "Pulling latest image..."
+                    docker pull ${IMAGE_NAME}:latest
+
+                    echo "Starting new container..."
+                    docker run -d --name ${CONTAINER_NAME} -p ${APP_PORT}:${APP_PORT} ${IMAGE_NAME}:latest
+                '''
             }
         }
     }
 
     post {
         success {
-            echo '✅ Deployment Successful! Your app is live on port 4173.'
+            echo "🚀 Deployment Successful! App running on port ${APP_PORT}"
         }
         failure {
-            echo '❌ Deployment Failed. Check Jenkins logs for details.'
+            echo "❌ Deployment Failed. Please check pipeline logs."
         }
     }
 }
