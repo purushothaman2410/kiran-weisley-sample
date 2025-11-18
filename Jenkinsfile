@@ -25,9 +25,11 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 withCredentials([
-                    usernamePassword(credentialsId: 'dockerhub-creds', 
-                    usernameVariable: 'DOCKER_USER', 
-                    passwordVariable: 'DOCKER_PASS')
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds', 
+                        usernameVariable: 'DOCKER_USER', 
+                        passwordVariable: 'DOCKER_PASS'
+                    )
                 ]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
@@ -60,11 +62,29 @@ pipeline {
     }
 
     post {
+
         success {
             echo "🚀 Deployment Successful! App running on port ${APP_PORT}"
+
+            withCredentials([string(credentialsId: 'teams-webhook', variable: 'TEAMS_URL')]) {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -d "{ \\"text\\": \\"✅ *Jenkins Deployment Successful!* 🚀\\\\nApplication deployed on port 4173.\\" }" \
+                    $TEAMS_URL
+                '''
+            }
         }
+
         failure {
             echo "❌ Deployment Failed. Please check pipeline logs."
+
+            withCredentials([string(credentialsId: 'teams-webhook', variable: 'TEAMS_URL')]) {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -d "{ \\"text\\": \\"❌ *Jenkins Deployment Failed!* Please check logs.\\" }" \
+                    $TEAMS_URL
+                '''
+            }
         }
     }
 }
